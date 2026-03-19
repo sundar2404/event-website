@@ -1,0 +1,111 @@
+.biometric-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    animation: fadeIn 1s ease-out;
+    position: relative;
+    /* Ensure it stays above canvas */
+    z-index: 10;
+}
+
+/* Container for the scanner */
+.scan-container {
+    width: 120px;
+    height: 120px;
+    position: relative;
+    border-radius: 20px;
+    /* Soft edges */
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    /* Subtle green glow behind the fingerprint */
+    box-shadow: 0 0 50px rgba(0, 255, 136, 0.15);
+}
+
+/* Fingerprint SVG Styling */
+.fingerprint-svg {
+    width: 100%;
+    height: 100%;
+    color: #00ff9d;
+    /* Neon Green */
+    filter: drop-shadow(0 0 5px rgba(0, 255, 136, 0.5));
+}
+
+/* Animation for the paths drawing/filling */
+.fp-path {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: drawPath 3s ease-out infinite alternate;
+}
+
+@keyframes drawPath {
+    0% {
+        stroke-dashoffset: 100;
+        opacity: 0.3;
+    }
+
+    100% {
+        stroke-dashoffset: 0;
+        opacity: 1;
+    }
+}
+
+/* The horizontal scanning line */
+.scanner-line {
+    position: absolute;
+    left: -10%;
+    /* Extend slightly beyond container */
+    width: 120%;
+    height: 4px;
+    /* Thicker scan line */
+    background: #ccff00;
+    /* Lime accent */
+
+    /* Strong glow */
+    box-shadow: 0 0 15px #ccff00, 0 0 30px #ccff00;
+
+    /* Animation */
+    animation: scanMove 2s ease-in-out infinite;
+
+    z-index: 10;
+    border-radius: 50%;
+    /* Soft ends */
+}
+
+@keyframes scanMove {
+    0% {
+        top: 0%;
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        top: 100%;
+        opacity: 0;
+    }
+}
+
+/* Adjust title for single line specifically */
+.hero-title {
+    white-space: nowrap;
+}
+
+/* Responsive adjustment */
+@media (max-width: 600px) {
+    .hero-title {
+        font-size: 2.2rem;
+        white-space: normal;
+        /* Allow wrap on very small screens */
+    }
+}

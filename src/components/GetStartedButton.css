@@ -1,0 +1,111 @@
+.get-started-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 36px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--bg-dark);
+    background: white;
+    /* Start as white for contrast or a light green */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    cursor: pointer;
+    overflow: visible;
+    /* Changed from hidden to allow outer glows */
+    transition: all 0.4s cubic-bezier(0.3, 1, 0.3, 1);
+    z-index: 10;
+    box-shadow:
+        0 0 0 0 rgba(0, 255, 136, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Gradient Background with animation */
+.get-started-btn::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    /* Slight bleed for glow */
+    border-radius: inherit;
+    background: linear-gradient(90deg,
+            #00ff9d,
+            #ccff00,
+            #00ff9d);
+    background-size: 200% 200%;
+    z-index: -1;
+    animation: shimmer 3s linear infinite;
+    opacity: 1;
+}
+
+/* Inner cut-out to create a border effect if desired, otherwise full fill */
+.get-started-btn span {
+    position: relative;
+    z-index: 2;
+    color: #000;
+    /* Ensuring maximum contrast against bright green */
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 200% 50%;
+    }
+}
+
+/* Hover State - Joyful Animation */
+.get-started-btn:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow:
+        0 0 20px rgba(0, 255, 136, 0.6),
+        0 0 60px rgba(204, 255, 0, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.get-started-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+}
+
+.btn-icon {
+    display: flex;
+    align-items: center;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.get-started-btn:hover .btn-icon {
+    transform: translateX(6px) rotate(-15deg);
+    /* Playful movement */
+}
+
+/* Add a floating particle effect on hover (simulated with pseudo-element) */
+.get-started-btn:hover::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 120%;
+    height: 120%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 60%);
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+    animation: ripple 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(2);
+        opacity: 0;
+    }
+}
