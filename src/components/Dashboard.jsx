@@ -1,158 +1,359 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 import { AnimatePresence, motion } from 'framer-motion';
+const Motion = motion; // re-export to avoid unused lint
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-    LayoutDashboard,
-    Calendar,
-    Users,
-    Search,
-    Bell,
-    ChevronRight,
-    MapPin,
-    Clock,
-    Star,
-    Filter,
-    Menu,
-    X,
-    Trophy,
-    CheckCircle2,
-    BookOpen,
-    LogOut,
-    ArrowLeft,
-    ArrowRight,
-    Globe,
-    Settings,
-    ChevronLeft
+    LayoutDashboard, Calendar, Users, Search, ChevronRight,
+    MapPin, Clock, Trophy, LogOut, ArrowRight, Globe,
+    Settings, ChevronLeft, Mic2, Ticket, Zap, Star, X
 } from 'lucide-react';
 import { useCMS } from '../context/CMSContext';
 import './Dashboard.css';
 import ThemeToggle from './ThemeToggle';
+import LiveSession from './LiveSession';
 
-// ── Sub-Components ────────────────────────────────────────────────────────────
+// ── Event Card ─────────────────────────────────────────────────────────────────
 
-const WebinarCard = ({ event, isActive, onSelect, onRegister, speakers = [] }) => {
+const EventCard = ({ event, isActive, onSelect, onRegister, speakers = [] }) => {
     const speakerDetail = speakers.find(s => s.name === event.speaker);
+    const statusColor = event.event_status === 'Live' ? '#00ff88' : event.event_status === 'Completed' ? '#888' : '#ffab00';
 
     return (
         <motion.div
             layout
-            whileHover={{ y: -5 }}
-            className={`yt-card ${isActive ? 'active' : ''}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -6, transition: { duration: 0.2 } }}
+            className={`ev-card ${isActive ? 'active' : ''}`}
             onClick={() => onSelect(event)}
         >
-            <div className="yt-thumb">
+            {/* Thumbnail */}
+            <div className="ev-thumb">
                 <img
-                    src={event.banner_image ? `http://localhost:5000${event.banner_image}` : (event.image_url ? `http://localhost:5000${event.image_url}` : 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80&w=600')}
+                    src={event.card_thumbnail
+                        ? `http://localhost:5000${event.card_thumbnail}`
+                        : (event.banner_image ? `http://localhost:5000${event.banner_image}` : 'https://images.unsplash.com/photo-1540575861501-7ad05823c94b?auto=format&fit=crop&q=80&w=800')}
                     alt={event.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
-                <div style={{
-                    position: 'absolute', bottom: 0, left: 0, right: 0,
-                    padding: '40px 20px 20px', background: 'linear-gradient(transparent, rgba(0,0,0,0.95) 40%, #000 100%)',
-                    display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 2
-                }}>
-                    <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '900', color: 'white', letterSpacing: '-0.8px', lineHeight: '1.1' }}>{event.name}</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--g-accent)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
-                        <Clock size={14} /> {event.event_time || '10:00 AM'}
+                <div className="ev-thumb-overlay" />
+
+                {/* Status tag */}
+                <div className="ev-status-tag" style={{ background: `${statusColor}22`, borderColor: `${statusColor}55`, color: statusColor }}>
+                    <span className="ev-status-dot" style={{ background: statusColor }} />
+                    {event.event_status || 'Upcoming'}
+                </div>
+
+                {/* Category tag */}
+                {event.tag && (
+                    <div className="ev-category-tag">
+                        {event.tag}
                     </div>
-                </div>
-                {event.is_featured && <div className="yt-live-tag">LIVE MISSION</div>}
+                )}
             </div>
 
-            <div className="yt-info" style={{ marginTop: '12px', padding: '0 8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <div className="yt-avatar" style={{
-                    border: '2px solid rgba(0, 255, 136, 0.2)',
-                    width: '40px', height: '40px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(255,255,255,0.05)'
-                }}>
-                    {speakerDetail?.image_url ? (
-                        <img src={`http://localhost:5000${speakerDetail.image_url}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : <span style={{ color: 'var(--g-accent)', fontWeight: '900' }}>{event.speaker ? event.speaker[0] : 'S'}</span>}
-                </div>
-                <div className="yt-text">
-                    <span className="yt-speaker" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>{event.speaker || 'Elite Operative'}</span>
-                    {speakerDetail && (
-                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                            {speakerDetail.expertise}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Body */}
+            <div className="ev-body">
+                <h3 className="ev-title">{event.name}</h3>
+                <p className="ev-desc">{event.description}</p>
 
-            <div style={{ padding: '0 8px 15px 56px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <p style={{
-                    fontSize: '0.85rem',
-                    color: 'rgba(255,255,255,0.5)',
-                    lineHeight: '1.6',
-                    margin: '12px 0 20px',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    fontWeight: '400'
-                }}>
-                    {event.description}
-                </p>
+                {/* Meta info */}
+                <div className="ev-meta">
+                    <span className="ev-meta-item">
+                        <Calendar size={13} />
+                        {event.event_date}
+                    </span>
+                    <span className="ev-meta-item">
+                        <MapPin size={13} />
+                        {event.location || 'Online'}
+                    </span>
+                    <span className="ev-meta-item">
+                        <Clock size={13} />
+                        {event.event_time || 'TBA'}
+                    </span>
+                </div>
 
-                <div style={{ marginTop: 'auto' }}>
-                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>
-                            <Calendar size={14} style={{ color: 'var(--g-accent)' }} /> <span>{event.event_date}</span>
+                {/* Speaker row */}
+                {event.speaker && (
+                    <div className="ev-speaker-row">
+                        <div className="ev-speaker-avatar">
+                            {speakerDetail?.image_url
+                                ? <img src={`http://localhost:5000${speakerDetail.image_url}`} alt="" />
+                                : <span>{event.speaker[0]}</span>}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>
-                            <MapPin size={14} style={{ color: 'var(--g-accent)' }} /> <span>{event.location || 'Cyber-Space'}</span>
+                        <div className="ev-speaker-info">
+                            <span className="ev-speaker-name">{event.speaker}</span>
+                            {speakerDetail && <span className="ev-speaker-role">{speakerDetail.expertise}</span>}
                         </div>
                     </div>
+                )}
 
-                    <button className="poster-action-btn" onClick={(e) => { e.stopPropagation(); onRegister(event); }} style={{ width: '100%', letterSpacing: '2px' }}>
-                        INITIALIZE REGISTRATION
-                    </button>
-                </div>
+                {/* CTA Button */}
+                <button
+                    className="ev-register-btn"
+                    onClick={e => { e.stopPropagation(); onRegister(event); }}
+                >
+                    <Ticket size={16} />
+                    Register Now
+                    <ArrowRight size={15} />
+                </button>
             </div>
-        </motion.div >
+        </motion.div>
     );
 };
 
+// ── Speaker Card ───────────────────────────────────────────────────────────────
+
+const SpeakerCard = ({ speaker }) => (
+    <motion.div
+        className="sp-card"
+        layout
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ y: -5 }}
+    >
+        <div className="sp-photo">
+            <img
+                src={speaker.image_url
+                    ? `http://localhost:5000${speaker.image_url}`
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(speaker.name)}&background=0a0a0a&color=00ff88&bold=true`}
+                alt={speaker.name}
+            />
+            <div className="sp-photo-gradient" />
+            <div className="sp-photo-badge">
+                <Mic2 size={12} />
+                Expert
+            </div>
+        </div>
+        <div className="sp-body">
+            <h3 className="sp-name">{speaker.name}</h3>
+            <span className="sp-role">{speaker.expertise}</span>
+            <p className="sp-bio">{speaker.bio}</p>
+        </div>
+    </motion.div>
+);
+
+// ── Ticket Card ────────────────────────────────────────────────────────────────
+
+const TicketCard = ({ reg, onJoin }) => (
+    <motion.div
+        className="tk-card"
+        layout
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ y: -5 }}
+    >
+        <div className="tk-left">
+            <div className="tk-event-type">{reg.tag || 'Special Event'}</div>
+            <h3 className="tk-title">{reg.event_name}</h3>
+            
+            <div className="tk-details">
+                <div className="tk-detail">
+                    <Calendar size={14} />
+                    <span>{reg.event_date}</span>
+                </div>
+                <div className="tk-detail">
+                    <Clock size={14} />
+                    <span>{reg.event_time || 'Join now'}</span>
+                </div>
+                <div className="tk-detail">
+                    <MapPin size={14} />
+                    <span>{reg.location || 'Online Session'}</span>
+                </div>
+            </div>
+
+            <button className="tk-join-btn" onClick={() => onJoin(reg)}>
+                <Video size={16} />
+                Join Live Session
+                <ArrowRight size={14} />
+            </button>
+        </div>
+
+        <div className="tk-divider">
+            <div className="tk-notch tk-notch-top" />
+            <div className="tk-dashed-line" />
+            <div className="tk-notch tk-notch-bottom" />
+        </div>
+
+        <div className="tk-right">
+            <div className="tk-qr-area">
+                <div className="tk-qr-code">
+                    <div className="tk-qr-pixel-grid">
+                        {[...Array(16)].map((_, i) => (
+                            <div key={i} className="tk-qr-pixel" style={{ opacity: [1, 0.2, 0.8, 1, 0.4, 1, 0.2, 0.9, 1, 0.1, 1, 0.3, 1, 0.7, 0.2, 1][i] }} />
+                        ))}
+                    </div>
+                </div>
+                <span className="tk-ticket-id">#{reg.id.toString().padStart(5, '0')}</span>
+            </div>
+            <div className="tk-vertical-label">ADMIT ONE</div>
+        </div>
+    </motion.div>
+);
+
+// Fallback for CheckCircle (not imported at top)
+const CheckCircle = ({ size }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>;
+
+// ── Side Details Panel ─────────────────────────────────────────────────────────
 
 const SideDetailsPanel = ({ event, onBack, onRegister }) => (
     <motion.div
-        initial={{ opacity: 0, x: 20 }}
+        initial={{ opacity: 0, x: 60 }}
         animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 20 }}
-        className="side-preview-panel glass-morph"
+        exit={{ opacity: 0, x: 60 }}
+        transition={{ type: 'spring', damping: 25 }}
+        className="detail-panel"
     >
-        <div className="preview-header">
-            <button className="preview-back-btn" onClick={onBack}><X size={18} /> TERMINATE PREVIEW</button>
-        </div>
-        <div className="preview-scroll">
-            <div className="preview-visual">
-                <img src={event.banner_image ? `http://localhost:5000${event.banner_image}` : (event.image_url ? `http://localhost:5000${event.image_url}` : 'https://images.unsplash.com/photo-1540575861501-7ad05823c94b?auto=format&fit=crop&q=80&w=1200')} alt="" />
+        <button className="detail-close-btn" onClick={onBack}>
+            <X size={18} />
+        </button>
+
+        <div className="detail-scroll">
+            <div className="detail-hero">
+                <img
+                    src={event.banner_image
+                        ? `http://localhost:5000${event.banner_image}`
+                        : 'https://images.unsplash.com/photo-1540575861501-7ad05823c94b?auto=format&fit=crop&q=80&w=1200'}
+                    alt={event.name}
+                />
+                <div className="detail-hero-overlay" />
+                <div className="detail-hero-content">
+                    {event.tag && <span className="detail-tag">{event.tag}</span>}
+                    <h2>{event.name}</h2>
+                </div>
             </div>
-            <div className="preview-content">
-                <h2>{event.name}</h2>
-                <div className="preview-meta-list">
-                    <div className="p-item"><Calendar size={16} /> <span>{event.event_date}</span></div>
-                    <div className="p-item"><Clock size={16} /> <span>{event.event_time || '10:00 AM'}</span></div>
-                    <div className="p-item"><MapPin size={16} /> <span>{event.location}</span></div>
+
+            <div className="detail-body">
+                <div className="detail-info-grid">
+                    <div className="detail-info-item">
+                        <Calendar size={16} />
+                        <div>
+                            <span className="detail-info-label">Date</span>
+                            <span className="detail-info-value">{event.event_date}</span>
+                        </div>
+                    </div>
+                    <div className="detail-info-item">
+                        <Clock size={16} />
+                        <div>
+                            <span className="detail-info-label">Time</span>
+                            <span className="detail-info-value">{event.event_time || 'TBA'}</span>
+                        </div>
+                    </div>
+                    <div className="detail-info-item">
+                        <MapPin size={16} />
+                        <div>
+                            <span className="detail-info-label">Location</span>
+                            <span className="detail-info-value">{event.location || 'Online'}</span>
+                        </div>
+                    </div>
+                    <div className="detail-info-item">
+                        <Globe size={16} />
+                        <div>
+                            <span className="detail-info-label">Type</span>
+                            <span className="detail-info-value">{event.event_type || 'Online'}</span>
+                        </div>
+                    </div>
                 </div>
-                <div className="p-divider" />
-                <div className="p-section">
-                    <label>MISSION BRIEFING</label>
-                    <p>{event.description}</p>
-                </div>
-                <button className="p-primary-btn" onClick={() => onRegister(event)}>
-                    SECURE CLEARANCE <ArrowRight size={18} />
+
+                {event.speaker && (
+                    <div className="detail-speaker-row">
+                        <Mic2 size={16} />
+                        <span>Speaker: <strong>{event.speaker}</strong></span>
+                    </div>
+                )}
+
+                {event.description && (
+                    <div className="detail-section">
+                        <h4>About this Event</h4>
+                        <p>{event.description}</p>
+                    </div>
+                )}
+
+                <button className="detail-register-btn" onClick={() => onRegister(event)}>
+                    <Ticket size={18} />
+                    Register for this Event
+                    <ArrowRight size={16} />
                 </button>
             </div>
         </div>
     </motion.div>
 );
+
+// ── Hero Slider ────────────────────────────────────────────────────────────────
+
+const HeroSlider = ({ gallery, currentSlide, setCurrentSlide, onViewEvent, onRegister }) => {
+    if (!gallery || gallery.length === 0) return (
+        <div className="hero-empty">
+            <Zap size={40} style={{ color: 'var(--g-accent)', marginBottom: '16px' }} />
+            <p>No featured events yet. Add an event and mark it as featured!</p>
+        </div>
+    );
+
+    const slide = gallery[currentSlide];
+
+    return (
+        <div className="hero-slider">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={currentSlide}
+                    className="hero-slide"
+                    initial={{ opacity: 0, scale: 1.05 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.97 }}
+                    transition={{ duration: 0.6 }}
+                >
+                    <div className="hero-slide-media">
+                        <img
+                            src={slide.image_url
+                                ? (slide.image_url.startsWith('http') ? slide.image_url : `http://localhost:5000${slide.image_url}`)
+                                : (slide.banner_image
+                                    ? `http://localhost:5000${slide.banner_image}`
+                                    : 'https://images.unsplash.com/photo-1540575861501-7ad05823c94b?auto=format&fit=crop&q=80&w=1600')}
+                            alt=""
+                        />
+                        <div className="hero-gradient" />
+                    </div>
+
+                    <div className="hero-content">
+                        <div className="hero-badge">
+                            <span className="hero-badge-dot" />
+                            FEATURED EVENT
+                        </div>
+                        <h1 className="hero-title">{slide.name || slide.title}</h1>
+                        <p className="hero-subtitle">{slide.description || slide.subtitle}</p>
+                        <div className="hero-actions">
+                            <button className="hero-btn-primary" onClick={() => onViewEvent(slide)}>
+                                <ChevronRight size={18} /> View Details
+                            </button>
+                            <button className="hero-btn-secondary" onClick={() => onRegister(slide)}>
+                                <Ticket size={16} /> Register Free
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </AnimatePresence>
+
+            {/* Slide indicators */}
+            <div className="hero-dots">
+                {gallery.map((_, i) => (
+                    <button
+                        key={i}
+                        className={`hero-dot ${i === currentSlide ? 'active' : ''}`}
+                        onClick={() => setCurrentSlide(i)}
+                    />
+                ))}
+            </div>
+
+            {/* Prev / Next */}
+            <button className="hero-arrow hero-arrow-left" onClick={() => setCurrentSlide((currentSlide - 1 + gallery.length) % gallery.length)}>
+                <ChevronLeft size={22} />
+            </button>
+            <button className="hero-arrow hero-arrow-right" onClick={() => setCurrentSlide((currentSlide + 1) % gallery.length)}>
+                <ChevronRight size={22} />
+            </button>
+        </div>
+    );
+};
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
@@ -172,33 +373,19 @@ const Dashboard = ({ onLogout }) => {
     const [speakers, setSpeakers] = useState([]);
     const [filterCategory, setFilterCategory] = useState('All');
     const [currentSlide, setCurrentSlide] = useState(0);
+    const [activeSession, setActiveSession] = useState(null);
 
     const fetchEvents = useCallback(async () => {
-        try {
-            const res = await api.get('/events');
-            setEvents(res.data.data || []);
-        } catch {
-            console.error('Failed to fetch events');
-        }
+        try { const r = await api.get('/events'); setEvents(r.data.data || []); } catch (err) { console.error('Fetch events failed', err); }
     }, []);
 
     const fetchMyRegistrations = useCallback(async () => {
         if (!userEmail) return;
-        try {
-            const res = await api.get(`/registrations/my/${userEmail}`);
-            setUserRegistrations(res.data.data || []);
-        } catch {
-            console.error('Failed to fetch my registrations');
-        }
+        try { const r = await api.get(`/registrations/my/${userEmail}`); setUserRegistrations(r.data.data || []); } catch (err) { console.error('Fetch registrations failed', err); }
     }, [userEmail]);
 
     const fetchSpeakers = useCallback(async () => {
-        try {
-            const res = await api.get('/speakers');
-            setSpeakers(res.data.data || []);
-        } catch {
-            console.error('Failed to fetch speakers');
-        }
+        try { const r = await api.get('/speakers'); setSpeakers(r.data.data || []); } catch (err) { console.error('Fetch speakers failed', err); }
     }, []);
 
     useEffect(() => {
@@ -207,14 +394,12 @@ const Dashboard = ({ onLogout }) => {
         fetchSpeakers();
     }, [fetchEvents, fetchMyRegistrations, fetchSpeakers]);
 
-    const activeGallery = slides?.length > 0 ? slides : events.slice(0, 3);
+    const activeGallery = slides?.length > 0 ? slides : events.filter(e => e.is_featured).slice(0, 5);
 
     useEffect(() => {
-        if (activeGallery.length > 0) {
-            const timer = setInterval(() => {
-                setCurrentSlide(prev => (prev + 1) % activeGallery.length);
-            }, 5000);
-            return () => clearInterval(timer);
+        if (activeGallery.length > 1) {
+            const t = setInterval(() => setCurrentSlide(p => (p + 1) % activeGallery.length), 5000);
+            return () => clearInterval(t);
         }
     }, [activeGallery]);
 
@@ -223,233 +408,257 @@ const Dashboard = ({ onLogout }) => {
     }, [navigate, userName, userEmail]);
 
     const filteredEvents = events.filter(e => {
-        const matchesSearch = (e.name || '').toLowerCase().includes(search.toLowerCase());
-        const matchesCategory = filterCategory === 'All' || e.tag === filterCategory;
-        return matchesSearch && matchesCategory;
+        const matchSearch = (e.name || '').toLowerCase().includes(search.toLowerCase());
+        const matchCat = filterCategory === 'All' || e.tag === filterCategory;
+        return matchSearch && matchCat;
     });
 
     const categories = ['All', ...new Set(events.map(e => e.tag).filter(Boolean))];
 
     const menuItems = [
-        { id: 'events', label: 'Home', icon: LayoutDashboard },
-        { id: 'speakers', label: 'Speakers', icon: Users },
-        { id: 'registrations', label: 'My Tickets', icon: Trophy },
-        { id: 'settings', label: 'Settings', icon: Settings },
+        { id: 'events', label: 'Home', icon: LayoutDashboard, iconClass: 'nav-icon-home' },
+        { id: 'speakers', label: 'Speakers', icon: Mic2, iconClass: 'nav-icon-speakers' },
+        { id: 'registrations', label: 'My Tickets', icon: Ticket, iconClass: 'nav-icon-tickets' },
+        { id: 'settings', label: 'Settings', icon: Settings, iconClass: 'nav-icon-settings' },
     ];
 
     return (
-        <div className="glass-root">
-            <div className="glass-bg">
-                <div className="glass-glow spot-a" />
-                <div className="glass-glow spot-b" />
-                <div className="glass-grid" />
+        <div className="db-root">
+            {/* Background */}
+            <div className="db-bg">
+                <div className="db-glow db-glow-a" />
+                <div className="db-glow db-glow-b" />
+                <div className="db-grid" />
             </div>
 
-            <header className="glass-header glass-morph">
-                <div className="h-left">
-                    <div className="h-logo">
-                        {content.website_logo ? (
-                            <img src={`http://localhost:5000${content.website_logo}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        ) : <span style={{ fontWeight: '900' }}>{content.website_name ? content.website_name[0] : 'G'}</span>}
+            {/* ── Sidebar ── */}
+            <aside className="db-sidebar">
+                <div className="db-brand">
+                    <div className="db-brand-logo">
+                        {content.website_logo
+                            ? <img src={`http://localhost:5000${content.website_logo}`} alt="" />
+                            : <Zap size={20} />}
                     </div>
-                    <span>{content.website_name || 'GENSAAS'} HQ</span>
+                    <span className="db-brand-name">{content.website_name || 'GenSaas'}</span>
                 </div>
 
-                <nav className="h-nav">
-                    {menuItems.map(item => (
-                        <button
+                <nav className="db-nav">
+                    {menuItems.map((item, idx) => (
+                        <motion.button
                             key={item.id}
-                            className={`h-nav-item ${activeTab === item.id ? 'active' : ''}`}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 + idx * 0.1 }}
+                            whileHover={{ x: 8 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`db-nav-btn ${activeTab === item.id ? 'active' : ''}`}
                             onClick={() => setActiveTab(item.id)}
                         >
-                            <item.icon size={18} />
+                            <span className={`nav-icon-wrap ${item.iconClass}`}>
+                                <item.icon size={20} />
+                            </span>
                             <span>{item.label}</span>
-                        </button>
+                            {activeTab === item.id && <span className="db-nav-indicator" />}
+                        </motion.button>
                     ))}
                 </nav>
 
-                <div className="h-right">
-                    <div className="h-search glass-morph">
-                        <Search size={16} />
-                        <input
-                            placeholder="Search missions..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
-                    <ThemeToggle />
-                    <div className="h-user">
-                        <div className="h-user-info">
-                            <span className="h-user-name">{userName}</span>
-                            <span className="h-user-tag">SECURE ADVISOR</span>
+                <motion.div 
+                    className="db-sidebar-footer"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                >
+                    <div className="db-user-pill">
+                        <div className="db-user-avatar">{userName[0]?.toUpperCase()}</div>
+                        <div className="db-user-info">
+                            <span className="db-user-name">{userName}</span>
+                            <span className="db-user-tag">Attendee</span>
                         </div>
-                        <div className="h-avatar">{userName[0]}</div>
                     </div>
-                    <button className="h-logout-btn" onClick={onLogout} title="Sign Out">
+                    <motion.button 
+                        className="db-logout-btn" 
+                        onClick={onLogout} 
+                        title="Logout"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                    >
                         <LogOut size={20} />
-                    </button>
-                </div>
-            </header>
+                        <span>Sign Out</span>
+                    </motion.button>
+                </motion.div>
+            </aside>
 
-            <div className="glass-main">
-                <AnimatePresence>
-                    {viewingEvent && (
-                        <SideDetailsPanel
-                            event={viewingEvent}
-                            onBack={() => setViewingEvent(null)}
-                            onRegister={handleRegister}
-                        />
-                    )}
-                </AnimatePresence>
+            {/* ── Main area ── */}
+            <div className="db-main">
+                {/* Topbar */}
+                <header className="db-topbar">
+                    <div>
+                        <h2 className="db-page-title">
+                            {activeTab === 'events' && 'Discover Events'}
+                            {activeTab === 'speakers' && 'Meet Speakers'}
+                            {activeTab === 'registrations' && 'My Tickets'}
+                            {activeTab === 'settings' && 'Settings'}
+                        </h2>
+                        <p className="db-page-sub">
+                            {activeTab === 'events' && `${events.length} events available`}
+                            {activeTab === 'speakers' && `${speakers.length} experts onboarded`}
+                            {activeTab === 'registrations' && `${userRegistrations.length} ticket${userRegistrations.length !== 1 ? 's' : ''} registered`}
+                        </p>
+                    </div>
 
-                <main className="glass-content-v2 scroll-area">
+                    <div className="db-topbar-right">
+                        <div className="db-search-box">
+                            <Search size={16} />
+                            <input
+                                placeholder="Search events…"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <ThemeToggle />
+                        <div className="db-topbar-avatar">{userName[0]?.toUpperCase()}</div>
+                    </div>
+                </header>
+
+                {/* Content */}
+                <main className="db-content">
+                    {/* ── Events Tab ── */}
                     {activeTab === 'events' && (
-                        <>
-                            <div className="poster-slideshow-v3 glass-morph">
-                                <AnimatePresence mode="wait">
-                                    <motion.div
-                                        key={currentSlide}
-                                        initial={{ opacity: 0, scale: 1.1 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        transition={{ duration: 1 }}
-                                        className="poster-slide"
-                                    >
-                                        <div className="slide-media">
-                                            <img
-                                                src={activeGallery.length > 0 ?
-                                                    (activeGallery[currentSlide].image_url ?
-                                                        (activeGallery[currentSlide].image_url.startsWith('http') ? activeGallery[currentSlide].image_url : `http://localhost:5000${activeGallery[currentSlide].image_url}`) :
-                                                        (activeGallery[currentSlide].banner_image ? `http://localhost:5000${activeGallery[currentSlide].banner_image}` : `https://images.unsplash.com/photo-1540575861501-7ad05823c94b?auto=format&fit=crop&q=80&w=1200`)) :
-                                                    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=2000'
-                                                }
-                                                alt=""
-                                            />
-                                            <div className="slide-vignette" />
-                                        </div>
-                                        <div className="poster-overlay">
-                                            <div className="poster-info">
-                                                <span className="poster-badge">
-                                                    <span className="pulse-dot" />
-                                                    MISSION STATUS: ACTIVE
-                                                </span>
-                                                <h1 className="hero-title-text">
-                                                    {activeGallery.length > 0 ? (activeGallery[currentSlide].name || activeGallery[currentSlide].title) : "Access Denied"}
-                                                </h1>
-                                                <p className="hero-desc">
-                                                    {activeGallery.length > 0 ? (activeGallery[currentSlide].description || activeGallery[currentSlide].subtitle) : "Decrypting next wave of exclusive global tech missions."}
-                                                </p>
-                                                <div className="hero-actions" style={{ display: 'flex', gap: '16px' }}>
-                                                    {activeGallery.length > 0 && (
-                                                        <>
-                                                            <button className="poster-action-btn" onClick={() => setViewingEvent(activeGallery[currentSlide])}>
-                                                                ACCESS DATA <ArrowRight size={18} />
-                                                            </button>
-                                                            <button className="poster-secondary-btn" onClick={() => handleRegister(activeGallery[currentSlide])}>
-                                                                INITIALIZE
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </AnimatePresence>
+                        <div>
+                            {/* Hero Slider */}
+                            <HeroSlider
+                                gallery={activeGallery}
+                                currentSlide={currentSlide}
+                                setCurrentSlide={setCurrentSlide}
+                                onViewEvent={setViewingEvent}
+                                onRegister={handleRegister}
+                            />
 
-                                {activeGallery.length > 0 && (
-                                    <div className="poster-controls">
-                                        <div style={{ display: 'flex', gap: '40px' }}>
-                                            {activeGallery.map((_, i) => (
-                                                <button key={i} className={`p-dot-v2 ${currentSlide === i ? 'active' : ''}`} onClick={() => setCurrentSlide(i)}>
-                                                    <span className="dot-labeled">MISSION {i + 1}</span>
-                                                    <div className="dot-progress-rect" />
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button className="poster-secondary-btn" style={{ padding: '10px' }} onClick={() => setCurrentSlide((currentSlide - 1 + activeGallery.length) % activeGallery.length)}><ChevronLeft size={20} /></button>
-                                            <button className="poster-secondary-btn" style={{ padding: '10px' }} onClick={() => setCurrentSlide((currentSlide + 1) % activeGallery.length)}><ChevronRight size={20} /></button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="section-header" style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', fontWeight: '900' }}>
-                                    <div style={{ width: '8px', height: '24px', background: 'var(--g-accent)', borderRadius: '4px' }} />
-                                    EXPLORE LIVE MISSIONS
+                            {/* Category pills */}
+                            <div className="db-section-header">
+                                <h3 className="db-section-title">
+                                    <span className="db-section-accent" />
+                                    All Events
                                 </h3>
-                                <div className="category-pills" style={{ display: 'flex', gap: '8px' }}>
+                                <div className="db-pills">
                                     {categories.map(cat => (
                                         <button
                                             key={cat}
-                                            className={`pill-btn ${filterCategory === cat ? 'active' : ''}`}
+                                            className={`db-pill ${filterCategory === cat ? 'active' : ''}`}
                                             onClick={() => setFilterCategory(cat)}
-                                            style={{
-                                                padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--g-border)',
-                                                background: filterCategory === cat ? 'var(--g-accent)' : 'rgba(255,255,255,0.03)',
-                                                color: filterCategory === cat ? '#000' : '#fff', fontWeight: '800', cursor: 'pointer'
-                                            }}
-                                        >{cat}</button>
+                                        >
+                                            {cat}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="events-grid-v2" style={{ marginTop: '20px' }}>
-                                {filteredEvents.map(ev => (
-                                    <WebinarCard
-                                        key={ev.id}
-                                        event={ev}
-                                        speakers={speakers}
-                                        isActive={viewingEvent?.id === ev.id}
-                                        onSelect={setViewingEvent}
-                                        onRegister={handleRegister}
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-
-                    {activeTab === 'speakers' && (
-                        <div className="events-grid-v2">
-                            {speakers.map(s => (
-                                <div key={s.id} className="yt-card active">
-                                    <div className="yt-thumb">
-                                        <img src={s.image_url ? `http://localhost:5000${s.image_url}` : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=400'} alt="" />
-                                        <div className="yt-live-tag">MISSION ELITE</div>
-                                    </div>
-                                    <div style={{ padding: '20px' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900' }}>{s.name}</h3>
-                                        <span style={{ color: 'var(--g-accent)', fontWeight: '800', fontSize: '0.9rem', display: 'block', margin: '8px 0' }}>{s.expertise}</span>
-                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', lineHeight: '1.6' }}>{s.bio}</p>
-                                    </div>
+                            {filteredEvents.length === 0 ? (
+                                <div className="db-empty-state">
+                                    <Calendar size={48} />
+                                    <p>No events found. Check back soon!</p>
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="db-events-grid">
+                                    {filteredEvents.map(ev => (
+                                        <EventCard
+                                            key={ev.id}
+                                            event={ev}
+                                            speakers={speakers}
+                                            isActive={viewingEvent?.id === ev.id}
+                                            onSelect={setViewingEvent}
+                                            onRegister={handleRegister}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {activeTab === 'registrations' && (
-                        <div className="events-grid-v2">
-                            {userRegistrations.map(reg => (
-                                <div key={reg.id} className="yt-card active">
-                                    <div className="yt-thumb" style={{ height: '300px' }}>
-                                        <img src={reg.banner_image ? `http://localhost:5000${reg.banner_image}` : 'https://images.unsplash.com/photo-1591115765373-520b7a21769b?auto=format&fit=crop&q=80&w=800'} alt="" />
-                                        <div className="yt-live-tag" style={{ background: 'var(--g-accent)', color: '#000' }}>DECRYPTED</div>
-                                    </div>
-                                    <div style={{ padding: '20px' }}>
-                                        <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '900' }}>{reg.event_name}</h3>
-                                        <div style={{ display: 'flex', gap: '15px', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginTop: '10px' }}>
-                                            <span><Calendar size={14} /> {reg.event_date}</span>
-                                            <span><Clock size={14} /> {reg.event_time}</span>
-                                        </div>
-                                    </div>
+                    {/* ── Speakers Tab ── */}
+                    {activeTab === 'speakers' && (
+                        <div>
+                            {speakers.length === 0 ? (
+                                <div className="db-empty-state">
+                                    <Users size={48} />
+                                    <p>No speakers added yet.</p>
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="db-speakers-grid">
+                                    {speakers.map(s => <SpeakerCard key={s.id} speaker={s} />)}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── Tickets Tab ── */}
+                    {activeTab === 'registrations' && (
+                        <div>
+                            {userRegistrations.length === 0 ? (
+                                <div className="db-empty-state">
+                                    <Ticket size={48} />
+                                    <p>You haven't registered for any events yet.</p>
+                                    <button className="db-explore-btn" onClick={() => setActiveTab('events')}>
+                                        Explore Events <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="db-tickets-list">
+                                    {userRegistrations.map(r => (
+                                        <TicketCard 
+                                            key={r.id} 
+                                            reg={r} 
+                                            onJoin={(reg) => setActiveSession(reg)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── Settings Tab ── */}
+                    {activeTab === 'settings' && (
+                        <div className="db-settings-card">
+                            <h3>Account Info</h3>
+                            <div className="db-settings-row">
+                                <span>Name</span><strong>{userName}</strong>
+                            </div>
+                            <div className="db-settings-row">
+                                <span>Email</span><strong>{userEmail || '—'}</strong>
+                            </div>
+                            <div className="db-settings-row">
+                                <span>Role</span><strong>Attendee</strong>
+                            </div>
+                            <button className="db-danger-btn" onClick={onLogout}>
+                                <LogOut size={16} /> Sign Out
+                            </button>
                         </div>
                     )}
                 </main>
             </div>
+
+            {/* ── Side detail panel ── */}
+            <AnimatePresence>
+                {viewingEvent && (
+                    <SideDetailsPanel
+                        event={viewingEvent}
+                        onBack={() => setViewingEvent(null)}
+                        onRegister={handleRegister}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* ── Active Session Overlay ── */}
+            <AnimatePresence>
+                {activeSession && (
+                    <LiveSession 
+                        event={activeSession} 
+                        attendeeName={userName}
+                        onExit={() => setActiveSession(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };

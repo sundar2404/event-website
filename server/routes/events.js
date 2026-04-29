@@ -35,17 +35,27 @@ router.get('/', async (req, res) => {
 });
 
 // Create event (Admin Only)
-router.post('/', authMiddleware, upload.single('banner_image'), async (req, res) => {
+router.post('/', authMiddleware, upload.fields([
+    { name: 'banner_image', maxCount: 1 },
+    { name: 'card_thumbnail', maxCount: 1 },
+    { name: 'success_poster', maxCount: 1 },
+    { name: 'poster_logo', maxCount: 1 }
+]), async (req, res) => {
     const { name, description, event_date, event_time, location, speaker, event_type, event_status, is_featured, is_visible } = req.body;
-    const banner_image = req.file ? `/uploads/${req.file.filename}` : null;
+    
+    const banner_image = req.files['banner_image'] ? `/uploads/${req.files['banner_image'][0].filename}` : null;
+    const card_thumbnail = req.files['card_thumbnail'] ? `/uploads/${req.files['card_thumbnail'][0].filename}` : null;
+    const success_poster = req.files['success_poster'] ? `/uploads/${req.files['success_poster'][0].filename}` : null;
+    const poster_logo = req.files['poster_logo'] ? `/uploads/${req.files['poster_logo'][0].filename}` : null;
+
     const featured = is_featured === 'true' || is_featured === true;
     const visible = is_visible === 'true' || is_visible === true || is_visible === 1 || is_visible === '1';
 
     try {
         const [result] = await db.execute(
-            `INSERT INTO events (name, description, event_date, event_time, location, speaker, event_type, event_status, banner_image, is_featured, is_visible) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [name, description, event_date, event_time, location || 'Virtual', speaker, event_type || 'Online', event_status || 'Upcoming', banner_image, featured, visible ? 1 : 0]
+            `INSERT INTO events (name, description, event_date, event_time, location, speaker, event_type, event_status, banner_image, card_thumbnail, success_poster, poster_logo, is_featured, is_visible) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [name, description, event_date, event_time, location || 'Virtual', speaker, event_type || 'Online', event_status || 'Upcoming', banner_image, card_thumbnail, success_poster, poster_logo, featured, visible ? 1 : 0]
         );
 
         // Also add to hero_slides if featured
@@ -134,9 +144,19 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // Update event (Admin Only)
-router.put('/:id', authMiddleware, upload.single('banner_image'), async (req, res) => {
+router.put('/:id', authMiddleware, upload.fields([
+    { name: 'banner_image', maxCount: 1 },
+    { name: 'card_thumbnail', maxCount: 1 },
+    { name: 'success_poster', maxCount: 1 },
+    { name: 'poster_logo', maxCount: 1 }
+]), async (req, res) => {
     const { name, description, event_date, event_time, location, speaker, event_type, event_status, is_featured, is_visible } = req.body;
-    const banner_image = req.file ? `/uploads/${req.file.filename}` : null;
+    
+    const banner_image = req.files['banner_image'] ? `/uploads/${req.files['banner_image'][0].filename}` : null;
+    const card_thumbnail = req.files['card_thumbnail'] ? `/uploads/${req.files['card_thumbnail'][0].filename}` : null;
+    const success_poster = req.files['success_poster'] ? `/uploads/${req.files['success_poster'][0].filename}` : null;
+    const poster_logo = req.files['poster_logo'] ? `/uploads/${req.files['poster_logo'][0].filename}` : null;
+
     const featured = is_featured === 'true' || is_featured === true || is_featured === 1 || is_featured === '1';
     const visible = is_visible === 'true' || is_visible === true || is_visible === 1 || is_visible === '1';
 
@@ -157,6 +177,18 @@ router.put('/:id', authMiddleware, upload.single('banner_image'), async (req, re
         if (banner_image) {
             query += `, banner_image = ?`;
             params.push(banner_image);
+        }
+        if (card_thumbnail) {
+            query += `, card_thumbnail = ?`;
+            params.push(card_thumbnail);
+        }
+        if (success_poster) {
+            query += `, success_poster = ?`;
+            params.push(success_poster);
+        }
+        if (poster_logo) {
+            query += `, poster_logo = ?`;
+            params.push(poster_logo);
         }
 
         query += ` WHERE id = ?`;

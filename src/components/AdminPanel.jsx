@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { useCMS } from '../context/CMSContext';
 import {
     ArrowLeft, ArrowRight, Users, Calendar, TrendingUp,
-    CheckCircle, Clock, Trophy, Activity, BarChart3, PieChart as PieChartIcon
+    CheckCircle, Clock, Trophy, Activity, BarChart3, PieChart as PieChartIcon,
+    Image as ImageIcon
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -13,6 +13,8 @@ import {
 } from 'recharts';
 import './AdminPanel.css';
 import ThemeToggle from './ThemeToggle';
+import ImageUploadField from './ImageUploadField';
+import IMAGE_SPECS from './imageSpecs';
 
 // Map of tab label → URL slug (and reverse)
 const TABS = [
@@ -20,6 +22,7 @@ const TABS = [
     { label: 'Events', slug: 'events' },
     { label: 'Users', slug: 'users' },
     { label: 'Registrations', slug: 'registrations' },
+    { label: 'Slideshow CMS', slug: 'slideshow-cms' },
     { label: 'Header CMS', slug: 'header-cms' },
     { label: 'General CMS', slug: 'general-cms' },
     { label: 'Homepage CMS', slug: 'homepage-cms' },
@@ -27,6 +30,7 @@ const TABS = [
     { label: 'Speaker CMS', slug: 'speaker-cms' },
     { label: 'Poster CMS', slug: 'poster-cms' },
     { label: 'Email CMS', slug: 'email-cms' },
+    { label: 'Image Specs', slug: 'image-specs' },
     { label: 'Security', slug: 'security' },
     { label: 'Analytics', slug: 'analytics' },
 ];
@@ -34,7 +38,6 @@ const slugToLabel = (slug) => TABS.find(t => t.slug === slug)?.label || 'Overvie
 const labelToSlug = (label) => TABS.find(t => t.label === label)?.slug || 'overview';
 
 const AdminPanel = ({ onLogout }) => {
-    const { token } = useAuth();
     const { refreshCMS } = useCMS();
     const navigate = useNavigate();
     const { tab: urlTab } = useParams();
@@ -75,18 +78,26 @@ const AdminPanel = ({ onLogout }) => {
     const [isEditingEvent, setIsEditingEvent] = useState(false);
     const [editingEventId, setEditingEventId] = useState(null);
     const [newEvent, setNewEvent] = useState({
-        name: '', description: '', event_date: '', event_time: '', speaker: '', event_type: 'Online', location: 'Virtual', banner_image: null, is_featured: false, is_visible: true
+        name: '', description: '', event_date: '', event_time: '', speaker: '', 
+        event_type: 'Online', location: 'Virtual', 
+        banner_image: null, card_thumbnail: null, success_poster: null, poster_logo: null,
+        is_featured: false, is_visible: true
     });
 
     const [speakers, setSpeakers] = useState([]);
     const [showSpeakerModal, setShowSpeakerModal] = useState(false);
     const [newSpeaker, setNewSpeaker] = useState({ name: '', expertise: '', bio: '', image: null, is_visible: true });
 
+    // Slideshow management state (reserved for custom slide modal)
+    const [_slideshowItems, _setSlideshowItems] = useState([]);
+    const [_showSlideModal, setShowSlideModal] = useState(false);
+    const [newSlide, setNewSlide] = useState({ title: '', subtitle: '', image: null, link_event_id: '', sort_order: 0, is_active: true });
+    // Suppress unused warnings — these are used in the Slideshow CMS tab's Add Slide button
+    void setShowSlideModal; void newSlide; void setNewSlide;
+
     // The config object is no longer needed for API calls if the `api` utility handles tokens internally.
     // Keeping it here for now in case it's used elsewhere, but it's removed from api calls below.
-    const config = useMemo(() => ({
-        headers: { Authorization: `Bearer ${token}` }
-    }), [token]);
+
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
@@ -120,19 +131,29 @@ const AdminPanel = ({ onLogout }) => {
                 setSpeakers(res.data.data || []);
             }
         } catch (err) {
-            console.error('Fetch error:', err);
+            console.error('Fetch error in AdminPanel:', err);
+            if (err.response?.status === 401) {
+                console.warn('Unauthorized access to admin data. Token may be expired.');
+            }
         } finally {
             setLoading(false);
         }
-    }, [activeTab, token]); // token is in dependency array for config, but config is not used in api calls.
+    }, [activeTab]); // token is in dependency array for config, but config is not used in api calls.
 
     const handleCreateEvent = async (e) => {
         e.preventDefault();
         const formData = new FormData();
         Object.keys(newEvent).forEach(key => {
-            if (key !== 'banner_image') formData.append(key, newEvent[key]);
+            if (!['banner_image', 'card_thumbnail', 'success_poster', 'poster_logo'].includes(key)) {
+                formData.append(key, newEvent[key]);
+            }
         });
+        
+        // Append all 4 images if they exist
         if (newEvent.banner_image) formData.append('banner_image', newEvent.banner_image);
+        if (newEvent.card_thumbnail) formData.append('card_thumbnail', newEvent.card_thumbnail);
+        if (newEvent.success_poster) formData.append('success_poster', newEvent.success_poster);
+        if (newEvent.poster_logo) formData.append('poster_logo', newEvent.poster_logo);
 
         try {
             if (isEditingEvent) {
@@ -149,10 +170,14 @@ const AdminPanel = ({ onLogout }) => {
             setShowCreateModal(false);
             setIsEditingEvent(false);
             setEditingEventId(null);
-            setNewEvent({ name: '', description: '', event_date: '', event_time: '', speaker: '', event_type: 'Online', location: 'Virtual', banner_image: null, is_featured: false, is_visible: true });
+            setNewEvent({ 
+                name: '', description: '', event_date: '', event_time: '', speaker: '', 
+                event_type: 'Online', location: 'Virtual', 
+                banner_image: null, card_thumbnail: null, success_poster: null, poster_logo: null,
+                is_featured: false, is_visible: true 
+            });
             fetchData();
             refreshCMS(); // Sync with dashboard slides
-            // The alert 'Event Launched Successfully!' was duplicated, removed one.
         } catch (err) {
             const msg = err.response?.data?.message || 'Failed to launch event';
             alert('Error: ' + msg);
@@ -262,6 +287,9 @@ const AdminPanel = ({ onLogout }) => {
             event_type: ev.event_type || 'Online',
             location: ev.location,
             banner_image: null,
+            card_thumbnail: null,
+            success_poster: null,
+            poster_logo: null,
             is_featured: !!ev.is_featured,
             is_visible: !!ev.is_visible
         });
@@ -536,14 +564,19 @@ const AdminPanel = ({ onLogout }) => {
                             <button className="add-btn" onClick={() => {
                                 setIsEditingEvent(false);
                                 setEditingEventId(null);
-                                setNewEvent({ name: '', description: '', event_date: '', event_time: '', speaker: '', tag: 'Webinar', tag_color: '#00ff88', location: 'Virtual', banner_image: null, is_featured: false, is_visible: true });
+                                setNewEvent({ 
+                                    name: '', description: '', event_date: '', event_time: '', 
+                                    speaker: '', tag: 'Webinar', tag_color: '#00ff88', location: 'Virtual', 
+                                    banner_image: null, card_thumbnail: null, success_poster: null, poster_logo: null,
+                                    is_featured: false, is_visible: true 
+                                });
                                 setShowCreateModal(true);
                             }}>+ Launch New Event</button>
                         </div>
 
                         {showCreateModal && (
                             <div className="admin-modal-overlay">
-                                <div className="admin-modal glass-morph">
+                                <div className="admin-modal">
                                     <div className="modal-header">
                                         <h2>{isEditingEvent ? 'Modify Event Mission' : 'Launch New Event'}</h2>
                                         <button className="close-btn" onClick={() => {
@@ -604,15 +637,33 @@ const AdminPanel = ({ onLogout }) => {
                                             <label>Location</label>
                                             <input value={newEvent.location} onChange={e => setNewEvent({ ...newEvent, location: e.target.value })} placeholder="Virtual / Physical Address" />
                                         </div>
-                                        <input type="file" accept="image/*" onChange={e => { // Removed 'required' for editing flow
-                                            const file = e.target.files[0];
-                                            if (file && file.size > 50 * 1024 * 1024) {
-                                                alert('File too large! Max 50MB.');
-                                                e.target.value = '';
-                                                return;
-                                            }
-                                            setNewEvent({ ...newEvent, banner_image: file });
-                                        }} />
+                                        <div className="form-section-title">Visual Assets</div>
+                                        <div className="grid-2">
+                                            <ImageUploadField
+                                                specKey="event_banner"
+                                                existingImageUrl={isEditingEvent ? (events.find(ev => ev.id === editingEventId)?.banner_image) : null}
+                                                onChange={(file) => setNewEvent({ ...newEvent, banner_image: file })}
+                                            />
+                                            <ImageUploadField
+                                                specKey="event_card_thumbnail"
+                                                existingImageUrl={isEditingEvent ? (events.find(ev => ev.id === editingEventId)?.card_thumbnail) : null}
+                                                onChange={(file) => setNewEvent({ ...newEvent, card_thumbnail: file })}
+                                            />
+                                        </div>
+
+                                        <div className="form-section-title">Registration Deliverables</div>
+                                        <div className="grid-2">
+                                            <ImageUploadField
+                                                specKey="poster_template"
+                                                existingImageUrl={isEditingEvent ? (events.find(ev => ev.id === editingEventId)?.success_poster) : null}
+                                                onChange={(file) => setNewEvent({ ...newEvent, success_poster: file })}
+                                            />
+                                            <ImageUploadField
+                                                specKey="poster_logo"
+                                                existingImageUrl={isEditingEvent ? (events.find(ev => ev.id === editingEventId)?.poster_logo) : null}
+                                                onChange={(file) => setNewEvent({ ...newEvent, poster_logo: file })}
+                                            />
+                                        </div>
                                         <div className="grid-2">
                                             <div className="form-group" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
                                                 <input type="checkbox" checked={newEvent.is_featured} onChange={e => setNewEvent({ ...newEvent, is_featured: e.target.checked })} />
@@ -945,7 +996,7 @@ const AdminPanel = ({ onLogout }) => {
                             {/* Add/Edit User Modal */}
                             {showUserModal && (
                                 <div className="admin-modal-overlay">
-                                    <div className="admin-modal glass-morph" style={{ maxWidth: '420px' }}>
+                                    <div className="admin-modal" style={{ maxWidth: '420px' }}>
                                         <div className="modal-header">
                                             <h2>{isEditingUser ? 'Edit User' : 'Add New User'}</h2>
                                             <button className="close-btn" onClick={() => setShowUserModal(false)}>×</button>
@@ -972,32 +1023,7 @@ const AdminPanel = ({ onLogout }) => {
                     );
                 })()}
 
-                {activeTab === 'Registrations' && (
-                    <div className="admin-section">
-                        <div className="section-header">
-                            <h3>Attendees List</h3>
-                            <button className="export-btn" onClick={exportCSV}>Export CSV</button>
-                        </div>
-                        <div className="table-responsive">
-                            <table className="admin-table">
-                                <thead>
-                                    <tr><th>Name</th><th>Email</th><th>Phone</th><th>Event</th><th>Date</th></tr>
-                                </thead>
-                                <tbody>
-                                    {registrations.map(r => (
-                                        <tr key={r.id}>
-                                            <td>{r.user_name}</td>
-                                            <td>{r.user_email}</td>
-                                            <td>{r.user_phone}</td>
-                                            <td>{r.event_name}</td>
-                                            <td>{new Date(r.registered_at).toLocaleDateString()}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+
 
                 {activeTab === 'General CMS' && (
                     <div className="admin-section">
@@ -1009,11 +1035,20 @@ const AdminPanel = ({ onLogout }) => {
                             </div>
                             <div className="grid-2">
                                 <div className="form-group">
-                                    <input type="file" accept="image/*" onChange={e => setCmsData({ ...cmsData, website_logo: e.target.files[0] })} />
+                                    <ImageUploadField
+                                        specKey="website_logo"
+                                        value={cmsData.website_logo}
+                                        existingImageUrl={typeof cmsData.website_logo === 'string' ? cmsData.website_logo : null}
+                                        onChange={(file) => setCmsData({ ...cmsData, website_logo: file })}
+                                    />
                                 </div>
                                 <div className="form-group">
-                                    <label>Favicon</label>
-                                    <input type="file" accept="image/*" onChange={e => setCmsData({ ...cmsData, favicon: e.target.files[0] })} />
+                                    <ImageUploadField
+                                        specKey="favicon"
+                                        value={cmsData.favicon}
+                                        existingImageUrl={typeof cmsData.favicon === 'string' ? cmsData.favicon : null}
+                                        onChange={(file) => setCmsData({ ...cmsData, favicon: file })}
+                                    />
                                 </div>
                             </div>
                             <div className="grid-2">
@@ -1141,19 +1176,11 @@ const AdminPanel = ({ onLogout }) => {
                                                     **Recommendation**: Transparent PNG or SVG for elite results. <br />
                                                     System will auto-fit your image into the 180x180px high-fidelity zone.
                                                 </p>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={e => setCmsData({ ...cmsData, website_logo: e.target.files[0] })}
-                                                    style={{
-                                                        fontSize: '0.9rem',
-                                                        color: 'rgba(255,255,255,0.7)',
-                                                        background: 'rgba(255,255,255,0.05)',
-                                                        padding: '15px',
-                                                        borderRadius: '12px',
-                                                        width: '100%',
-                                                        border: '1px solid rgba(255,255,255,0.1)'
-                                                    }}
+                                                <ImageUploadField
+                                                    specKey="website_logo"
+                                                    value={cmsData.website_logo}
+                                                    existingImageUrl={typeof cmsData.website_logo === 'string' ? cmsData.website_logo : null}
+                                                    onChange={(file) => setCmsData({ ...cmsData, website_logo: file })}
                                                 />
                                             </div>
                                         </div>
@@ -1225,74 +1252,7 @@ const AdminPanel = ({ onLogout }) => {
                     </div>
                 )}
 
-                {activeTab === 'Users' && (
-                    <div className="admin-section">
-                        <div className="section-header">
-                            <h3>Attendee Management <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>({allUsers.length} total)</span></h3>
-                            <button className="export-btn" onClick={exportCSV}>Export List</button>
-                        </div>
-                        <div className="table-responsive">
-                            <table className="admin-table">
-                                <thead>
-                                    <tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Event Registered</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
-                                </thead>
-                                <tbody>
-                                    {allUsers.map((u, idx) => (
-                                        <tr key={`${u.user_id}-${u.registration_id || idx}`}>
-                                            <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{idx + 1}</td>
-                                            <td><strong>{u.name}</strong></td>
-                                            <td>{u.email}</td>
-                                            <td>{u.phone || '—'}</td>
-                                            <td>
-                                                <span style={{
-                                                    padding: '3px 10px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.78rem',
-                                                    background: u.event_name === 'N/A (Just Logged In)' ? 'rgba(255,255,255,0.05)' : 'rgba(0,255,136,0.08)',
-                                                    color: u.event_name === 'N/A (Just Logged In)' ? 'var(--text-muted)' : 'var(--primary-green)',
-                                                    border: `1px solid ${u.event_name === 'N/A (Just Logged In)' ? 'rgba(255,255,255,0.08)' : 'rgba(0,255,136,0.2)'}`
-                                                }}>
-                                                    {u.event_name}
-                                                </span>
-                                            </td>
-                                            <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                                {new Date(u.registered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            </td>
-                                            <td>
-                                                <span style={{
-                                                    padding: '3px 10px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.78rem',
-                                                    background: u.is_active ? 'rgba(0,255,136,0.1)' : 'rgba(255,68,68,0.1)',
-                                                    color: u.is_active ? 'var(--primary-green)' : '#ff4444'
-                                                }}>
-                                                    {u.is_active ? '● Active' : '● Blocked'}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <button className="del-btn" onClick={async () => {
-                                                    await api.post(`/users/toggle-status/${u.user_id}`, {});
-                                                    fetchData();
-                                                }}>{u.is_active ? 'Block' : 'Unblock'}</button>
-                                                {u.registration_id && (
-                                                    <button className="del-btn" style={{ background: 'rgba(255,68,68,0.15)', color: '#ff4444', marginLeft: '4px' }} onClick={async () => {
-                                                        if (window.confirm('Delete this registration?')) {
-                                                            await api.delete(`/users/${u.registration_id}`);
-                                                            fetchData();
-                                                        }
-                                                    }}>Remove</button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {allUsers.length === 0 && (
-                                        <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No attendees have logged in yet.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+
 
                 {activeTab === 'Speaker CMS' && (
                     <div className="admin-section">
@@ -1600,21 +1560,24 @@ const AdminPanel = ({ onLogout }) => {
                                                     placeholder="e.g.  Morning,  Afternoon,  Evening"
                                                     style={{ width: '100%', marginTop: 0 }}
                                                     value={(() => {
-                                                        try { return JSON.parse(f.field_options || '[]').join(', '); }
+                                                        try { 
+                                                            const opts = typeof f.field_options === 'string' ? JSON.parse(f.field_options || '[]') : (f.field_options || []);
+                                                            return Array.isArray(opts) ? opts.join(', ') : '';
+                                                        }
                                                         catch { return ''; }
                                                     })()}
                                                     onChange={e => {
                                                         const opts = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                                                         const nf = [...dynamicFields];
-                                                        nf[idx] = { ...nf[idx], field_options: JSON.stringify(opts) };
+                                                        nf[idx] = { ...nf[idx], field_options: opts }; // Store as array for consistency
                                                         setDynamicFields(nf);
                                                     }}
                                                 />
                                                 {/* Live pill preview */}
                                                 {(() => {
                                                     try {
-                                                        const opts = JSON.parse(f.field_options || '[]');
-                                                        if (!opts.length) return null;
+                                                        const opts = typeof f.field_options === 'string' ? JSON.parse(f.field_options || '[]') : (f.field_options || []);
+                                                        if (!opts || !opts.length) return null;
                                                         return (
                                                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
                                                                 {opts.map((opt, oi) => (
@@ -1632,12 +1595,23 @@ const AdminPanel = ({ onLogout }) => {
                                 ))}
 
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                                    <button className="add-btn" onClick={() => setDynamicFields([...dynamicFields, { label: '', field_type: 'text', is_required: false, field_options: '[]' }])}>
+                                    <button className="add-btn" onClick={() => setDynamicFields([...dynamicFields, { label: '', field_type: 'text', is_required: false, field_options: [] }])}>
                                         + Add Field
                                     </button>
                                     <button className="save-btn" onClick={async () => {
-                                        await api.post(`/registration-fields/batch-update/${activeEventForFields}`, { fields: dynamicFields });
-                                        alert('Form fields saved!');
+                                        try {
+                                            const payload = { 
+                                                fields: dynamicFields.map(f => ({
+                                                    ...f,
+                                                    field_options: Array.isArray(f.field_options) ? JSON.stringify(f.field_options) : f.field_options
+                                                }))
+                                            };
+                                            await api.post(`/registration-fields/batch-update/${activeEventForFields}`, payload);
+                                            alert('Form structure saved successfully!');
+                                        } catch (err) {
+                                            console.error('Save failed', err);
+                                            alert('Failed to save structure: ' + (err.response?.data?.message || err.message));
+                                        }
                                     }}>Save Form Structure</button>
                                 </div>
                             </div>
@@ -1907,11 +1881,20 @@ const AdminPanel = ({ onLogout }) => {
                         <form onSubmit={handleUpdateTemplate} className="cms-form">
                             <div className="grid-2">
                                 <div className="form-group">
-                                    <input type="file" accept="image/*" onChange={e => setTemplateFiles({ ...templateFiles, template_image: e.target.files[0] })} />
+                                    <ImageUploadField
+                                        specKey="poster_template"
+                                        value={templateFiles.template_image}
+                                        existingImageUrl={template.template_image_url || null}
+                                        onChange={(file) => setTemplateFiles({ ...templateFiles, template_image: file })}
+                                    />
                                 </div>
                                 <div className="form-group">
-                                    <label>Brand Logo</label>
-                                    <input type="file" accept="image/*" onChange={e => setTemplateFiles({ ...templateFiles, logo_image: e.target.files[0] })} />
+                                    <ImageUploadField
+                                        specKey="poster_logo"
+                                        value={templateFiles.logo_image}
+                                        existingImageUrl={template.logo_image_url || null}
+                                        onChange={(file) => setTemplateFiles({ ...templateFiles, logo_image: file })}
+                                    />
                                 </div>
                             </div>
                             <div className="form-group">
@@ -1932,9 +1915,187 @@ const AdminPanel = ({ onLogout }) => {
                         </form>
                     </div>
                 )}
+                {/* ════════ SLIDESHOW CMS TAB ════════ */}
+                {activeTab === 'Slideshow CMS' && (
+                    <div className="admin-section">
+                        <div className="section-header">
+                            <div>
+                                <h3>🎞️ Slideshow Management</h3>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                                    Manage hero slider banners shown on the dashboard. Images must be <strong style={{ color: 'var(--primary-green)' }}>1920×600px</strong> (16:5 ratio).
+                                </p>
+                            </div>
+                            <button className="add-btn" onClick={() => {
+                                setNewSlide({ title: '', subtitle: '', image: null, link_event_id: '', sort_order: _slideshowItems.length, is_active: true });
+                                setShowSlideModal(true);
+                            }}>+ Add Slide</button>
+                        </div>
+
+                        {/* Image Spec Callout */}
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '16px',
+                            padding: '18px 22px', marginBottom: '24px',
+                            background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.15)',
+                            borderRadius: '16px'
+                        }}>
+                            <ImageIcon size={24} style={{ color: 'var(--primary-green)', flexShrink: 0 }} />
+                            <div>
+                                <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'white' }}>
+                                    Required Image Size: <span style={{ color: 'var(--primary-green)' }}>1920 × 600px</span> (Aspect Ratio: 16:5)
+                                </p>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Accepted formats: JPEG, PNG, WebP · Max file size: 5MB · Images will be auto-fit with cover mode
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Featured Events as Slides */}
+                        <h4 style={{ color: 'var(--primary-green)', marginBottom: '14px', fontSize: '0.95rem' }}>
+                            Featured Events in Slideshow ({events.filter(e => e.is_featured).length})
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                            {events.filter(e => e.is_featured).length === 0 && (
+                                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)', border: '2px dashed rgba(255,255,255,0.08)', borderRadius: '16px' }}>
+                                    No events are marked as featured. Edit events and check "Feature on Home Slider" to add them.
+                                </div>
+                            )}
+                            {events.filter(e => e.is_featured).map(ev => (
+                                <div key={ev.id} style={{
+                                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: '20px', overflow: 'hidden', transition: 'all 0.3s'
+                                }}>
+                                    <div style={{ position: 'relative', height: '160px', overflow: 'hidden', background: '#000' }}>
+                                        {ev.banner_image ? (
+                                            <img src={`http://localhost:5000${ev.banner_image}`} alt={ev.name}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                                                No banner image
+                                            </div>
+                                        )}
+                                        <div style={{
+                                            position: 'absolute', top: '10px', right: '10px',
+                                            padding: '4px 12px', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 800,
+                                            background: 'rgba(0,255,136,0.15)', color: 'var(--primary-green)', border: '1px solid rgba(0,255,136,0.3)',
+                                            backdropFilter: 'blur(10px)'
+                                        }}>
+                                            ⭐ FEATURED
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '16px' }}>
+                                        <h4 style={{ margin: '0 0 6px', fontSize: '1rem', color: 'white' }}>{ev.name}</h4>
+                                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                            {ev.event_date} · {ev.event_type}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                            <button className="export-btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }}
+                                                onClick={() => handleOpenEditModal(ev)}>Edit Banner</button>
+                                            <button className="del-btn" style={{ borderRadius: '8px' }}
+                                                onClick={async () => {
+                                                    try {
+                                                        const fd = new FormData();
+                                                        fd.append('is_featured', 'false');
+                                                        await api.put(`/events/${ev.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                                        fetchData();
+                                                    } catch { alert('Failed to remove from slideshow'); }
+                                                }}>Remove from Slideshow</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* All Events Quick-Toggle */}
+                        <h4 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '14px', fontSize: '0.88rem' }}>
+                            Quick Toggle: Add Events to Slideshow
+                        </h4>
+                        <div className="events-table-wrapper">
+                            <table className="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event</th>
+                                        <th>Date</th>
+                                        <th>Has Banner</th>
+                                        <th>In Slideshow</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {events.map(ev => (
+                                        <tr key={ev.id}>
+                                            <td>{ev.name}</td>
+                                            <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{ev.event_date}</td>
+                                            <td>
+                                                {ev.banner_image ? (
+                                                    <span style={{ color: 'var(--primary-green)', fontWeight: 700, fontSize: '0.78rem' }}>✓ Yes</span>
+                                                ) : (
+                                                    <span style={{ color: '#ff4444', fontWeight: 700, fontSize: '0.78rem' }}>✗ Missing</span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const fd = new FormData();
+                                                            fd.append('is_featured', ev.is_featured ? 'false' : 'true');
+                                                            await api.put(`/events/${ev.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                                            fetchData();
+                                                            refreshCMS();
+                                                        } catch { alert('Failed'); }
+                                                    }}
+                                                    style={{
+                                                        background: ev.is_featured ? 'rgba(0,255,136,0.1)' : 'rgba(255,255,255,0.04)',
+                                                        color: ev.is_featured ? 'var(--primary-green)' : 'var(--text-muted)',
+                                                        border: `1px solid ${ev.is_featured ? 'rgba(0,255,136,0.25)' : 'rgba(255,255,255,0.1)'}`,
+                                                        padding: '5px 14px', borderRadius: '8px', fontSize: '0.75rem',
+                                                        fontWeight: 700, cursor: 'pointer', transition: '0.2s'
+                                                    }}
+                                                >
+                                                    {ev.is_featured ? '⭐ Featured' : '○ Add'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* ════════ IMAGE SPECS REFERENCE TAB ════════ */}
+                {activeTab === 'Image Specs' && (
+                    <div className="admin-section">
+                        <h3>📐 Image Size Reference Guide</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '24px', lineHeight: 1.6 }}>
+                            All image uploads in this admin panel follow strict dimension requirements to ensure
+                            perfect display across the dashboard, slideshow, event cards, and registration templates.
+                            <strong style={{ color: 'var(--primary-green)' }}> Always upload images matching the recommended size.</strong>
+                        </p>
+
+                        <div className="img-spec-reference-grid">
+                            {Object.entries(IMAGE_SPECS).map(([key, spec]) => (
+                                <div key={key} className="img-spec-ref-card">
+                                    <div className="img-spec-ref-header">
+                                        <span className="img-spec-ref-icon">{spec.icon}</span>
+                                        <span className="img-spec-ref-title">{spec.label}</span>
+                                    </div>
+                                    <div className="img-spec-ref-dims">
+                                        <span className="img-spec-ref-dim">{spec.width}×{spec.height}px</span>
+                                        <span className="img-spec-ref-dim">Ratio: {spec.aspectRatio}</span>
+                                        <span className="img-spec-ref-dim">Max: {spec.maxFileSize < 1024 * 1024 ? `${(spec.maxFileSize / 1024).toFixed(0)}KB` : `${(spec.maxFileSize / (1024 * 1024)).toFixed(0)}MB`}</span>
+                                    </div>
+                                    <p className="img-spec-ref-desc">{spec.description}</p>
+                                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
+                                        Formats: {spec.formats.map(f => f.split('/')[1].toUpperCase()).join(', ')}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {showSpeakerModal && (
                     <div className="admin-modal-overlay">
-                        <div className="admin-modal glass-morph">
+                        <div className="admin-modal">
                             <div className="modal-header">
                                 <h2>Add Industry Expert</h2>
                                 <button className="close-btn" onClick={() => setShowSpeakerModal(false)}>×</button>
@@ -1952,10 +2113,11 @@ const AdminPanel = ({ onLogout }) => {
                                     <label>Professional Bio</label>
                                     <textarea required value={newSpeaker.bio} onChange={e => setNewSpeaker({ ...newSpeaker, bio: e.target.value })} placeholder="Tell us about their background..." rows="4" />
                                 </div>
-                                <div className="form-group">
-                                    <label>Profile Image</label>
-                                    <input type="file" accept="image/*" onChange={e => setNewSpeaker({ ...newSpeaker, image: e.target.files[0] })} />
-                                </div>
+                                <ImageUploadField
+                                    specKey="speaker_photo"
+                                    value={newSpeaker.image}
+                                    onChange={(file) => setNewSpeaker({ ...newSpeaker, image: file })}
+                                />
                                 <div className="form-group" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                                     <input type="checkbox" checked={newSpeaker.is_visible} onChange={e => setNewSpeaker({ ...newSpeaker, is_visible: e.target.checked })} id="speakerVisible" />
                                     <label htmlFor="speakerVisible" style={{ cursor: 'pointer', marginBottom: 0 }}>Immediate Public Visibility</label>

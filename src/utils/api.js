@@ -64,6 +64,11 @@ api.interceptors.response.use(
                 result.data = mockData.cms;
             } else if (url.includes('/templates/default')) {
                 result.data = mockData.templates.default;
+            } else if (url.includes('/registration-fields')) {
+                result.data = [
+                    { id: 1, label: 'T-Shirt Size', field_type: 'dropdown', is_required: 1, field_options: '["S", "M", "L", "XL"]' },
+                    { id: 2, label: 'Company Name', field_type: 'text', is_required: 0, field_options: '[]' }
+                ];
             }
 
             return Promise.resolve({ data: result });

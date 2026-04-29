@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../utils/api';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, CheckCircle2, Download, ArrowLeft, ArrowRight,
     User, Mail, Phone, MessageSquare, Utensils, Calendar, MapPin, Clock, ShieldCheck
@@ -54,7 +53,7 @@ const RegistrationPage = () => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            const res = await api.post('/registrations/register', {
+            await api.post('/registrations/register', {
                 ...form,
                 event_id: eventId,
                 dietary_pref: form.dietaryPref,
@@ -196,12 +195,18 @@ const RegistrationPage = () => {
         link.click();
     };
 
-    if (!event) return <div className="loading-full">Loading System...</div>;
+    useEffect(() => {
+        console.log('RegistrationPage: Event Data:', event);
+        console.log('RegistrationPage: Dynamic Fields:', dynamicFields);
+        console.log('RegistrationPage: Step:', step);
+    }, [event, dynamicFields, step]);
+
+    if (!event) return <div className="loading-full">Loading Event Data...</div>;
 
     return (
         <div className="registration-page-root">
             <div className="reg-background-glow">
-                <div className="glow-c spot-1" style={{ '--c': event.tag_color }} />
+                <div className="glow-c spot-1" style={{ '--c': event.tag_color || '#00ff88' }} />
                 <div className="glow-c spot-2" style={{ '--c': '#4a11ff' }} />
             </div>
 
@@ -213,127 +218,120 @@ const RegistrationPage = () => {
             </nav>
 
             <main className="reg-container">
-                <AnimatePresence mode="wait">
-                    {step === 1 ? (
-                        <motion.div
-                            key="step1"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="reg-card glass-morph"
-                        >
-                            <div className="reg-split">
-                                <div className="reg-info-side">
-                                    <div className="reg-tag" style={{ border: `1px solid ${event.tag_color}44`, color: event.tag_color }}>
-                                        {event.tag} • MISSION
-                                    </div>
-                                    <h1>{event.name}</h1>
-                                    <div className="reg-meta-stack">
-                                        <div className="m-item"><Calendar size={18} /> <span>{event.event_date}</span></div>
-                                        <div className="m-item"><Clock size={18} /> <span>{event.event_time || '10:00 AM'}</span></div>
-                                        <div className="m-item"><MapPin size={18} /> <span>{event.location}</span></div>
-                                    </div>
-                                    <p className="reg-desc">{event.description}</p>
-                                    <div className="reg-benefits">
-                                        <div className="b-item"><ShieldCheck size={16} /> Biometric Verified</div>
-                                        <div className="b-item"><ShieldCheck size={16} /> VIP Access Included</div>
-                                    </div>
+                {step === 1 ? (
+                    <div key="step1" className="reg-card glass-morph">
+                        <div className="reg-split" style={{ opacity: 1, visibility: 'visible', display: 'grid' }}>
+                            <div className="reg-info-side" style={{ background: '#111', color: '#fff', opacity: 1 }}>
+                                <div className="reg-tag" style={{ border: `1px solid ${event.tag_color || '#00ff88'}44`, color: event.tag_color || '#00ff88', opacity: 1 }}>
+                                    {event.tag || 'EVENT'} • MISSION
+                                </div>
+                                <h1 style={{ color: '#fff', opacity: 1 }}>{event.name}</h1>
+                                <div className="reg-meta-stack" style={{ opacity: 1 }}>
+                                    <div className="m-item"><Calendar size={18} /> <span>{event.event_date}</span></div>
+                                    <div className="m-item"><Clock size={18} /> <span>{event.event_time || '10:00 AM'}</span></div>
+                                    <div className="m-item"><MapPin size={18} /> <span>{event.location || 'Virtual'}</span></div>
+                                </div>
+                                <p className="reg-desc" style={{ color: 'rgba(255,255,255,0.8)', opacity: 1 }}>{event.description}</p>
+                                <div className="reg-benefits" style={{ opacity: 1 }}>
+                                    <div className="b-item"><ShieldCheck size={16} /> Biometric Verified</div>
+                                    <div className="b-item"><ShieldCheck size={16} /> VIP Access Included</div>
+                                </div>
+                            </div>
+
+                            <div className="reg-form-side" style={{ background: '#1a1a1a', opacity: 1 }}>
+                                <div className="form-header" style={{ opacity: 1 }}>
+                                    <h2 style={{ color: '#fff', opacity: 1 }}>Reserve Your Spot</h2>
+                                    <p style={{ color: 'rgba(255,255,255,0.6)', opacity: 1 }}>Secure your participation in seconds.</p>
                                 </div>
 
-                                <div className="reg-form-side">
-                                    <div className="form-header">
-                                        <h2>Reserve Your Spot</h2>
-                                        <p>Secure your participation in seconds.</p>
-                                    </div>
-
-                                    <form onSubmit={handleSubmit} className="premium-form">
-                                        <div className="p-input-group">
-                                            <div className="p-field">
-                                                <label><User size={14} /> Full Name</label>
-                                                <input required name="name" value={form.name} onChange={handleChange} placeholder="John Doe" />
-                                            </div>
-                                            <div className="p-field">
-                                                <label><Mail size={14} /> Email Address</label>
-                                                <input required type="email" name="email" value={form.email} onChange={handleChange} placeholder="john@example.com" />
-                                            </div>
-                                        </div>
-
-                                        <div className="p-input-group">
-                                            <div className="p-field">
-                                                <label><Phone size={14} /> Phone Number</label>
-                                                <input name="phone" value={form.phone} onChange={handleChange} placeholder="+91..." />
-                                            </div>
-                                            <div className="p-field">
-                                                <label><Utensils size={14} /> Special Needs</label>
-                                                <select name="dietaryPref" value={form.dietaryPref} onChange={handleChange}>
-                                                    <option value="none">Standard Entry</option>
-                                                    <option value="veg">Vegetarian</option>
-                                                    <option value="vegan">Vegan Entry</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {dynamicFields.map((f, idx) => (
-                                            <div key={idx} className="p-field">
-                                                <label>{f.label} {f.is_required ? '*' : ''}</label>
-                                                {f.field_type === 'dropdown' ? (
-                                                    <select required={f.is_required} onChange={e => handleCustomChange(f.label, e.target.value)}>
-                                                        <option value="">-- Select --</option>
-                                                        {JSON.parse(f.field_options || '[]').map((opt, oi) => (
-                                                            <option key={oi} value={opt}>{opt}</option>
-                                                        ))}
-                                                    </select>
-                                                ) : f.field_type === 'checkbox' ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <input type="checkbox" onChange={e => handleCustomChange(f.label, e.target.checked)} />
-                                                        <label style={{ margin: 0 }}>{f.label}</label>
-                                                    </div>
-                                                ) : (
-                                                    <input required={f.is_required} placeholder={f.label} onChange={e => handleCustomChange(f.label, e.target.value)} />
-                                                )}
-                                            </div>
-                                        ))}
-
+                                <form onSubmit={handleSubmit} className="premium-form" style={{ opacity: 1 }}>
+                                    <div className="p-input-group">
                                         <div className="p-field">
-                                            <label><MessageSquare size={14} /> Additional Notes</label>
-                                            <textarea rows="3" name="message" value={form.message} onChange={handleChange} placeholder="Anything we should know?" />
+                                            <label><User size={14} /> Full Name</label>
+                                            <input required name="name" value={form.name} onChange={handleChange} placeholder="John Doe" style={{ background: '#222', color: '#fff' }} />
                                         </div>
+                                        <div className="p-field">
+                                            <label><Mail size={14} /> Email Address</label>
+                                            <input required type="email" name="email" value={form.email} onChange={handleChange} placeholder="john@example.com" style={{ background: '#222', color: '#fff' }} />
+                                        </div>
+                                    </div>
 
-                                        <button type="submit" className="reg-submit-btn" disabled={isSubmitting}>
-                                            {isSubmitting ? 'Verifying Identity...' : 'Confirm Registration'} <ArrowRight size={20} />
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="step2"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="conf-view"
-                        >
-                            <div className="conf-header">
-                                <CheckCircle2 size={64} className="conf-icon" />
-                                <h1>Congratulations, {form.name.split(' ')[0]}!</h1>
-                                <p>You are officially registered for {event.name}.</p>
-                            </div>
+                                    <div className="p-input-group">
+                                        <div className="p-field">
+                                            <label><Phone size={14} /> Phone Number</label>
+                                            <input name="phone" value={form.phone} onChange={handleChange} placeholder="+91..." style={{ background: '#222', color: '#fff' }} />
+                                        </div>
+                                        <div className="p-field">
+                                            <label><Utensils size={14} /> Special Needs</label>
+                                            <select name="dietaryPref" value={form.dietaryPref} onChange={handleChange} style={{ background: '#222', color: '#fff' }}>
+                                                <option value="none">Standard Entry</option>
+                                                <option value="veg">Vegetarian</option>
+                                                <option value="vegan">Vegan Entry</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
-                            <div className="poster-container">
-                                <div className="poster-wrapper">
-                                    <canvas ref={canvasRef} width="800" height="800" className="final-canvas" />
-                                    <div className="canvas-scanner-effect" />
-                                </div>
-                                <div className="poster-actions">
-                                    <button onClick={downloadPoster} className="action-download">
-                                        <Download size={20} /> Download Personal Pass
+                                    {dynamicFields && dynamicFields.length > 0 && dynamicFields.map((f, idx) => (
+                                        <div key={idx} className="p-field">
+                                            <label>{f.label} {f.is_required ? '*' : ''}</label>
+                                            {f.field_type === 'dropdown' ? (
+                                                <select required={f.is_required} onChange={e => handleCustomChange(f.label, e.target.value)} style={{ background: '#222', color: '#fff' }}>
+                                                     <option value="">-- Select --</option>
+                                                     {(() => {
+                                                         try {
+                                                             const opts = typeof f.field_options === 'string' ? JSON.parse(f.field_options || '[]') : (f.field_options || []);
+                                                             return Array.isArray(opts) ? opts.map((opt, oi) => (
+                                                                 <option key={oi} value={opt}>{opt}</option>
+                                                             )) : null;
+                                                         } catch { return null; }
+                                                     })()}
+                                                 </select>
+                                            ) : f.field_type === 'checkbox' ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <input type="checkbox" onChange={e => handleCustomChange(f.label, e.target.checked)} />
+                                                    <label style={{ margin: 0 }}>{f.label}</label>
+                                                </div>
+                                            ) : (
+                                                <input required={f.is_required} placeholder={f.label} onChange={e => handleCustomChange(f.label, e.target.value)} style={{ background: '#222', color: '#fff' }} />
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    <div className="p-field">
+                                        <label><MessageSquare size={14} /> Additional Notes</label>
+                                        <textarea rows="3" name="message" value={form.message} onChange={handleChange} placeholder="Anything we should know?" style={{ background: '#222', color: '#fff' }} />
+                                    </div>
+
+                                    <button type="submit" className="reg-submit-btn" disabled={isSubmitting}>
+                                        {isSubmitting ? 'Verifying Identity...' : 'Confirm Registration'} <ArrowRight size={20} />
                                     </button>
-                                    <Link to="/dashboard" state={{ userName: form.name, userEmail: form.email, activeTab: 'registrations' }} className="action-finish">Return to Dashboard</Link>
-                                </div>
+                                </form>
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        </div>
+                    </div>
+
+                ) : (
+                    <div key="step2" className="conf-view">
+                        <div className="conf-header">
+                            <CheckCircle2 size={64} className="conf-icon" />
+                            <h1>Congratulations, {form.name.split(' ')[0]}!</h1>
+                            <p>You are officially registered for {event.name}.</p>
+                        </div>
+
+                        <div className="poster-container">
+                            <div className="poster-wrapper">
+                                <canvas ref={canvasRef} width="800" height="800" className="final-canvas" />
+                                <div className="canvas-scanner-effect" />
+                            </div>
+                            <div className="poster-actions">
+                                <button onClick={downloadPoster} className="action-download">
+                                    <Download size={20} /> Download Personal Pass
+                                </button>
+                                <Link to="/dashboard" state={{ userName: form.name, userEmail: form.email, activeTab: 'registrations' }} className="action-finish">Return to Dashboard</Link>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

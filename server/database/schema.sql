@@ -70,6 +70,51 @@ CREATE TABLE IF NOT EXISTS registrations (
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
 
+-- Speakers
+CREATE TABLE IF NOT EXISTS speakers (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    expertise   VARCHAR(255),
+    bio         TEXT,
+    image_url   VARCHAR(500),
+    social_links JSON DEFAULT NULL,
+    is_visible  BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Registration Fields
+CREATE TABLE IF NOT EXISTS registration_fields (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    event_id        INT NOT NULL,
+    label           VARCHAR(255) NOT NULL,
+    field_type      ENUM('text', 'number', 'dropdown', 'checkbox') DEFAULT 'text',
+    is_required     BOOLEAN DEFAULT FALSE,
+    field_order     INT DEFAULT 0,
+    options         JSON,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+-- Testimonials
+CREATE TABLE IF NOT EXISTS testimonials (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    role        VARCHAR(255),
+    content     TEXT,
+    image_url   VARCHAR(500),
+    is_active   BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sponsors
+CREATE TABLE IF NOT EXISTS sponsors (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    logo_url    VARCHAR(500),
+    link_url    VARCHAR(500),
+    is_active   BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Templates (Poster)
 CREATE TABLE IF NOT EXISTS templates (
     id              INT AUTO_INCREMENT PRIMARY KEY,

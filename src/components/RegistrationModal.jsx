@@ -4,12 +4,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, Download, Save, ArrowRight, User, Mail, Phone, MessageSquare, Utensils } from 'lucide-react';
 import './RegistrationModal.css';
 
-const generatePoster = (canvasRef, { name, eventName, eventDate, template }) => {
+const generatePoster = async (canvasRef, { name, eventName, eventDate, template, event }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.width;
     const H = canvas.height;
+
+    // Helper to load image
+    const loadImage = (url) => new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
 
     const cfg = {
         message: template?.congrat_message || 'We look forward to seeing you at the event!',
@@ -23,32 +32,34 @@ const generatePoster = (canvasRef, { name, eventName, eventDate, template }) => 
     };
 
     ctx.clearRect(0, 0, W, H);
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, '#030d07');
-    bg.addColorStop(0.5, '#050a03');
-    bg.addColorStop(1, '#020a07');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
 
-    ctx.strokeStyle = `${cfg.accentColor}08`;
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-
-    const glow1 = ctx.createRadialGradient(W * 0.2, H * 0.3, 0, W * 0.2, H * 0.3, 250);
-    glow1.addColorStop(0, `${cfg.accentColor}1F`);
-    glow1.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow1; ctx.fillRect(0, 0, W, H);
-
-    ctx.strokeStyle = `${cfg.accentColor}4D`;
-    ctx.lineWidth = 2;
-    roundRect(ctx, 20, 20, W - 40, H - 40, 24);
-    ctx.stroke();
+    // Background: Use success_poster if available, else standard gradient
+    if (event?.success_poster) {
+        const bgImg = await loadImage(`http://localhost:5000${event.success_poster}`);
+        if (bgImg) {
+            ctx.drawImage(bgImg, 0, 0, W, H);
+        } else {
+            drawFallbackBg(ctx, W, H, cfg);
+        }
+    } else {
+        drawFallbackBg(ctx, W, H, cfg);
+    }
+    
+    // Draw Logo: Use poster_logo if available
+    if (event?.poster_logo) {
+        const logoImg = await loadImage(`http://localhost:5000${event.poster_logo}`);
+        if (logoImg) {
+            // Draw logo at top center or left
+            const logoW = 80;
+            const logoH = 80;
+            ctx.drawImage(logoImg, W/2 - logoW/2, 30, logoW, logoH);
+        }
+    }
 
     ctx.textAlign = 'center';
     ctx.fillStyle = `${cfg.accentColor}E6`;
     ctx.font = 'bold 18px "Outfit", sans-serif';
-    ctx.fillText('🎉  C O N G R A T U L A T I O N S  🎉', W / 2, 120);
+    ctx.fillText('🎉  C O N G R A T U L A T I O N S  🎉', W / 2, 140);
 
     ctx.fillStyle = cfg.fontColor;
     ctx.font = `bold ${cfg.fontSize}px "${cfg.fontFamily}", sans-serif`;
@@ -74,6 +85,30 @@ const generatePoster = (canvasRef, { name, eventName, eventDate, template }) => 
         ctx.font = '14px "Outfit", sans-serif';
         ctx.fillText('📅  ' + (eventDate || 'Date TBD'), W / 2, H - 70);
     }
+};
+
+const drawFallbackBg = (ctx, W, H, cfg) => {
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#030d07');
+    bg.addColorStop(0.5, '#050a03');
+    bg.addColorStop(1, '#020a07');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = `${cfg.accentColor}08`;
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    const glow1 = ctx.createRadialGradient(W * 0.2, H * 0.3, 0, W * 0.2, H * 0.3, 250);
+    glow1.addColorStop(0, `${cfg.accentColor}1F`);
+    glow1.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow1; ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = `${cfg.accentColor}4D`;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 20, 20, W - 40, H - 40, 24);
+    ctx.stroke();
 };
 
 const roundRect = (ctx, x, y, w, h, r) => {
@@ -152,12 +187,13 @@ const RegistrationModal = ({ event, userName, onClose }) => {
 
     useEffect(() => {
         if (step === 2 && canvasRef.current) {
-            generatePoster(canvasRef, {
-                name: form.name,
-                eventName: event.name,
-                eventDate: event.event_date,
-                template
-            });
+                generatePoster(canvasRef, {
+                    name: form.name,
+                    eventName: event.name,
+                    eventDate: event.event_date,
+                    template,
+                    event
+                });
         }
     }, [step, template, event, form.name]);
 

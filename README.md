@@ -1,86 +1,96 @@
-# GenSaas Event Registration App
+# 🎟️ GenSaas Event Management System
 
-## Admin Panel Credentials
-
-- **Admin ID:** `sundar`
-- **Admin Password:** `sundar123`
-
-## Application Access
-
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:500
-## 🚀 EventCheckInApp: Generation Saas (GenSaas)
-
-**The ultimate high-fidelity event management system designed for seamless registrations, professional analytics, and biometric-grade pass generation.**
+**GenSaas** is a high-fidelity, premium event management platform designed for seamless registrations, professional analytics, and real-time live sessions. 
 
 ---
 
-## 💎 Premium Features
+## 🚀 Quick Setup Guide
 
-### 📊 Advanced Analytics & Platform Insights
-*   **Real-time Flow Monitoring**: Beautifully visualized registration trends over 30 days using Recharts.
-*   **Mission Performance**: Instant success rate metrics and event popularity distribution.
-*   **Telemetry Log**: Live registration feed tracking attendee entry in real-time.
+Follow these steps to get the entire project running on your local machine.
 
-### 🌓 Professional UX & UI
-*   **Glassmorphic Design**: Modern, premium aesthetics with fluid animations powered by Framer Motion.
-*   **Adaptive Roles**: Separate, secure portals for **Missions (Attendees)** and **Control (Admins)**.
-*   **Post-Registration Telemetry**: Auto-generating professional event passes with custom templates.
-
-### 🔌 Intelligent Standalone Mode
-*   **Database-Independent Demo**: The app automatically detects if the backend in unreachable and switches to **Mock Mode**, providing a full, rich dataset for presentations without any database setup required.
+### 1. Prerequisites
+- **Node.js** (v16 or higher)
+- **MySQL** (via XAMPP, WAMP, or standalone installation)
+- **Web Browser** (Chrome/Edge/Firefox)
 
 ---
 
-## 🏗️ Technical Architecture
+### 2. Database Configuration (MySQL)
+1. Open **XAMPP Control Panel** and start **MySQL**.
+2. Go to [http://localhost/phpmyadmin](http://localhost/phpmyadmin).
+3. Create a new database named `gensaas_events`.
+4. Select the `gensaas_events` database, go to the **Import** tab.
+5. Choose the file: `server/database/schema.sql` and click **Import**.
+6. (Optional) For demo data, import `server/database/dummy_data_v2.sql`.
 
-### Frontend (React + Vite)
-*   **Recharts**: High-end data visualization components.
-*   **Framer Motion**: State-of-the-art micro-interactions.
-*   **Lucide React**: Curated, unified iconography.
-*   **Axios Interceptors**: Intelligent failover logic for offline demonstrations.
-
-### Backend (Node.js + Express)
-*   **JWT Security**: Robust authentication for administrators.
-*   **MySQL (XAMPP)**: Professional-grade data persistence.
-*   **Gemini AI Integration**: Prepared for AI-driven insights and features.
+> [!IMPORTANT]
+> Update your database credentials in `server/.env`.
+> Set `DB_PASS` to your MySQL password (leave blank if none).
 
 ---
 
-## 🚀 Strategic Setup
-
-### 1. Database Configuration (Optional for Demo)
-If you wish to use the real database, ensure **XAMPP/MySQL** is running and execute:
-```bash
-cd server
-node scripts/load_dummy_v2.js
-```
-
-### 2. Backend Initialization
+### 3. Backend Setup (Node.js)
 ```bash
 cd server
 npm install
 npm start
 ```
+The backend API will be running at: `http://localhost:5000`
 
-### 3. Frontend Launcher
+---
+
+### 4. Frontend Setup (React)
+Open a new terminal:
 ```bash
-cd ..
+# From the root directory
 npm install
 npm run dev
 ```
+The application will be accessible at: `http://localhost:5173`
 
 ---
 
-## 🏁 Mission Credentials (Admin)
-*   **User ID**: `sundar`
-*   **Password**: `sundar123`
+## 💎 Key Features
+
+### 📡 Real-time Live Sessions
+Attendees can join live video sessions directly within the app. Features include:
+- **Mock Video Stream**: High-fidelity presentation view.
+- **Interactive Chat**: Real-time messaging with other attendees and hosts.
+- **Participant List**: See who else is in the session.
+- **Meeting Controls**: Mute, Camera toggle, and Recording simulation.
+
+### 🎫 Interactive Ticketing
+Revamped "My Tickets" section with a premium digital ticket design:
+- **Dynamic QR Code**: Unique visual identification for each ticket.
+- **Instant Join**: Direct "Join Live Session" button on the ticket.
+- **Schedule Sync**: Shows event time and location clearly.
+
+### 📊 Admin Control Center
+- **Live Analytics**: Real-time registration monitoring with Recharts graphs.
+- **Event Management**: Create, update, and manage speakers and events.
+- **CMS Integration**: Customize website logo, name, and featured slides.
 
 ---
 
-## 🛡️ Git Protocol
-The project is configured with a robust `.gitignore` to protect sensitive environment variables (`.env`) and ensure clean repository management.
-`baseURL` in `src/utils/api.js` to your production domain.
-3. Build the frontend using `npm run build` and serve the `dist` folder.
-4. Host the `server` directory using PM2 or similar Node.js process managers.
-5.
+## 🔐 Admin Credentials
+- **Admin ID:** `sundar`
+- **Admin Password:** `sundar123`
+
+---
+
+## 🛠️ Troubleshooting
+- **Database Connection Error**: Ensure MySQL is running on port 3306 and the credentials in `server/.env` are correct.
+- **Port Conflict**: If port 5000 is used, change `PORT` in `server/.env`.
+- **Mock Mode**: If the backend is offline, the app will automatically switch to Mock Mode using internal dummy data for demonstration purposes.
+
+---
+
+## 📂 Project Structure
+- `/src`: Frontend React components and logic.
+- `/server`: Express.js backend and API routes.
+- `/server/database`: SQL schema and migration files.
+- `/server/uploads`: Storage for event banners and speaker photos.
+- `/public`: Static assets.
+
+---
+*Developed with ❤️ for Advanced Event Management.*

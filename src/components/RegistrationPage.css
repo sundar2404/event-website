@@ -14,6 +14,14 @@
     z-index: 0;
 }
 
+.glass-morph {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(30px) !important;
+    -webkit-backdrop-filter: blur(30px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+
 .glow-c {
     position: absolute;
     width: 600px;
@@ -194,7 +202,7 @@
 .p-field label {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #555;
+    color: rgba(255, 255, 255, 0.6);
     display: flex;
     align-items: center;
     gap: 8px;

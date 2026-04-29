@@ -263,6 +263,29 @@
     gap: 1rem;
 }
 
+.grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}
+
+.scroll-x {
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.form-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary-green);
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
 .admin-loading {
     position: fixed;
     top: 0;
